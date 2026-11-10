@@ -26,6 +26,7 @@ var gravity := 0.0
 
 var previously_floored := false
 
+var jump_wish : bool = false
 var jumps_remaining: int
 
 var container_offset = Vector3(1.2, -1.1, -2.75)
@@ -56,41 +57,45 @@ func _process(delta):
 	handle_controls(delta)
 	handle_gravity(delta)
 	
-	# Movement
-	
-	var applied_velocity: Vector3
-	
-	movement_velocity = transform.basis * movement_velocity # Move forward
-	
-	applied_velocity = velocity.lerp(movement_velocity, delta * 10)
-	applied_velocity.y = - gravity
-	
-	velocity = applied_velocity
-	move_and_slide()
-	
 	# Rotation 
-	container.position = lerp(container.position, container_offset - (basis.inverse() * applied_velocity / 30), delta * 10)
-	
-	# Movement sound
-	
-	sound_footsteps.stream_paused = true
-	
-	if is_on_floor():
-		if abs(velocity.x) > 1 or abs(velocity.z) > 1:
-			sound_footsteps.stream_paused = false
+	container.position = lerp(container.position, container_offset - (basis.inverse() * velocity / 30), delta * 10)
 	
 	# Landing after jump or falling
 	
 	camera.position.y = lerp(camera.position.y, 0.0, delta * 5)
 	
+func _physics_process(delta: float) -> void:
+	# Handle functions
+	handle_controls_movement(delta)
+
+	# Movement
+
+	var applied_velocity: Vector3
+
+	movement_velocity = transform.basis * movement_velocity # Move forward
+
+	applied_velocity = velocity.lerp(movement_velocity, delta * 10)
+	applied_velocity.y = - gravity
+
+	velocity = applied_velocity
+	move_and_slide()
+
+	# Movement sound
+
+	sound_footsteps.stream_paused = true
+
+	if is_on_floor():
+		if abs(velocity.x) > 1 or abs(velocity.z) > 1:
+			sound_footsteps.stream_paused = false
+	
 	if is_on_floor() and gravity > 1 and !previously_floored: # Landed
 		Audio.play("sounds/land.ogg")
 		camera.position.y = -0.1
-	
+
 	previously_floored = is_on_floor()
-	
+
 	# Falling/respawning
-	
+
 	if position.y < -10:
 		get_tree().reload_current_scene()
 
@@ -113,10 +118,6 @@ func handle_controls(delta):
 		
 		input_mouse = Vector2.ZERO
 	
-	# Movement
-	var input := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
-	movement_velocity = Vector3(input.x, 0, input.y).normalized() * movement_speed
-	
 	# Handle Controller Rotation
 	var rotation_input := Input.get_vector("camera_right", "camera_left", "camera_down", "camera_up")
 	if rotation_input:
@@ -129,12 +130,21 @@ func handle_controls(delta):
 	# Jumping
 	
 	if Input.is_action_just_pressed("jump"):
-		if jumps_remaining:
-			action_jump()
+		jump_wish = true
 		
 	# Weapon switching
 	
 	action_weapon_toggle()
+
+func handle_controls_movement(delta):
+	# Movement
+	var input := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
+	movement_velocity = Vector3(input.x, 0, input.y).normalized() * movement_speed
+	
+	if jump_wish:
+		jump_wish = false
+		if jumps_remaining:
+			action_jump()
 
 # Camera rotation
 
